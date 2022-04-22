@@ -1,6 +1,8 @@
 import pymysql, os, pandas as pd
+from sqlalchemy import create_engine
 from config import aws_information_dict, aws_information_list
 from termcolor import colored
+
 
 class AWSConstruct:
     def __init__(self, sql_info=aws_information_list):
@@ -22,7 +24,6 @@ class AWSConstruct:
         the selected Amazon Web Services Relational Database Server.
         Make sure that if it is not in the same folder that you
         locate it, or use the variable outside the CLASS prior to running.
-
         :return:
         """
         try:
@@ -33,19 +34,33 @@ class AWSConstruct:
                                                  charset='utf8mb4',
                                                  cursorclass=pymysql.cursors.DictCursor
                                                  )
-
+        except:
             try:
+                db_test_connection = pymysql.connect(host=self.endpoint,
+                                                     user=self.user,
+                                                     password=self.pwd,
+                                                     database=self.db,
+                                                     # charset='utf8mb4',
+                                                     cursorclass=pymysql.cursors.DictCursor
+                                                     )
+            except:
+                return print(colored(f"Connection to AWS RDS unsuccessful...", "red"))
+            else:
                 cursor = db_test_connection.cursor()
                 cursor.execute("select version()")
                 version = cursor.fetchone()
+                return db_test_connection
+        else:
+            cursor = db_test_connection.cursor()
+            cursor.execute("select version()")
+            version = cursor.fetchone()
+            return db_test_connection
+        finally:
+            if db_test_connection:
                 print(colored(f"Handshake Successful! MySQL version {version['version()']}", "green"))
                 return db_test_connection
-            except:
-                print(colored(f"Connection to AWS RDS unsuccessful...", "blue"))
-                return db_test_connection
-        except:
-            print(colored(f"Connection to AWS RDS unsuccessful...", "red"))
-            return db_test_connection
+            else:
+                return print(colored(f"Connection to AWS RDS unsuccessful...", "red"))
 
     def sql_check_for_database(self, db_connection):
         """
@@ -63,6 +78,24 @@ class AWSConstruct:
 
         except:
             return print(colored("There was an error", "red"))
+
+    def sql_show_tables(self, db_connection, db_name):
+        """
+        Function will display all tables within Database.
+        :param db_connection:
+        :param db_name:
+        :return:
+        """
+        try:
+            cursor = db_connection.cursor()
+            cursor.execute(f"USE {db_name}")
+            sql_show_table = """SHOW TABLES"""
+            cursor.execute(sql_show_table)
+        except:
+            return print(
+                colored("Something happened. Please check your previous calls.\nReach out if problem persists", 'red'))
+        else:
+            return print(colored(cursor.fetchall(), 'green'))
 
     def sql_drop_database(self, db_connection, table_name):
         """
@@ -82,13 +115,16 @@ class AWSConstruct:
                 return print(colored(f"Table {table_name} has been deleted.", "green"))
 
             except:
-                return print(colored(f"Cannot drop table {table_name}. It does not exist.", "red"))
+                return print(colored(f"Cannot drop Database {table_name}. It does not exist.", "red"))
 
-        return print(colored(f"No action taken against table: {table_name}", "blue"))
+        return print(colored(f"No action taken against Database: {table_name}", "blue"))
 
     def sql_create_database(self, db_connection, db_name):
         """
         This function is attempting to create a database within MySQL.
+        :param db_connection:
+        :param db_name:
+        :return:
         """
         cursor = db_connection.cursor()
         sql_create_database = f"""CREATE DATABASE {db_name}"""
@@ -106,7 +142,7 @@ class AWSConstruct:
 
     def create_table_in_database(self, database, db_connection, table_name, dataframe):
         """
-
+        This function will attempt to make a table within the database.
         :param database:
         :param db_connection:
         :param table_name:
@@ -114,36 +150,55 @@ class AWSConstruct:
         :return:
         """
         try:
-
             cursor = db_connection.cursor()
-            columns = [f"""{i.replace(' ', '_')} {dataframe[i].dtypes}""" for i in dataframe.columns]
-            columns = [s.replace('64', '').replace(' or more', '').replace('-', '').replace(' or older', '').replace('/', '_') for s in columns]
+            columns = [f"""{i.replace(' ', '_').replace('-', '')} {dataframe[i].dtypes}""" for i in dataframe.columns]
+            columns = [s.replace('64', '').replace(' or more', '').replace(' or older', '').replace('/', '_') for s in
+                       columns]
             cursor.execute(f"USE {database}")
             create_table = f"""CREATE TABLE {table_name} (""" + ", ".join(columns) + ")"
             cursor.execute(create_table)
-            return print(colored(f"Schema/Table {table_name} created!", 'green'))
+            print(colored(f"Schema/Table {table_name} created!", 'green'))
+            return columns
         except:
             print(colored("Table creation failed.", 'red'))
 
-    def select_all_from_table(self, db_connection, db_name):
+    def show_counts_from_table(self, db_connection, database, table_name):
         """
         This will show all current tables from the selected Database
         :param db_connection:
-        :param db_name:
+        :param database:
+        :param table_name:
         :return:
         """
         cursor = db_connection.cursor()
-        cursor.execute(f"""USE {db_name}""")
+        cursor.execute(f"""USE {database}""")
+        cursor.execute(f"""SELECT COUNT(ID_ref) FROM {table_name}""")
         return print(colored(f"{cursor.fetchall()}", "green"))
 
-    def upload_excel_to_database(self, db_connection, dataframe):
+    def upload_excel_to_database(self, db_connection, database, table_name, dataframe):
         """
-
+        This will upload the excel document to the database.
         :param db_connection:
+        :param database:
+        :param table_name:
         :param dataframe:
         :return:
         """
-        pass
+        cursor = db_connection.cursor()
+        try:
+            cursor.execute(f"""DROP TABLE {table_name}""")
+        finally:
+
+            try:
+                engine = create_engine(
+                    f"""mysql+pymysql://{str(db_connection.user)[2:-1]}:{str(db_connection.password)[2:-1]}@{db_connection.host}:{str(db_connection.port)[2:-1]}/{database}""")
+                dataframe.to_sql(name=table_name, con=engine)
+                return print(colored(f"{len(dataframe)} rows and {len(dataframe.columns)} columns added.", 'green'))
+            except:
+                dataframe.to_sql(name=table_name * 2, con=engine)
+                return print(
+                    colored(f"{len(dataframe)} rows and {len(dataframe.columns)} columns added to {table_name * 2}.",
+                            'green'))
 
     def sql_disconnect(self, db_connection):
         """
@@ -151,7 +206,7 @@ class AWSConstruct:
         :param db_connection:
         :return:
         """
-        cursor = db_connection
+        cursor = db_connection.cursor()
         try:
             cursor.close()
             return print(colored(f"Disconnection from {db_connection} successful.", "green"))
