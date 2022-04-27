@@ -39,8 +39,8 @@ class AWSConstruct:
                 db_test_connection = pymysql.connect(host=self.endpoint,
                                                      user=self.user,
                                                      password=self.pwd,
-                                                     database=self.db,
-                                                     # charset='utf8mb4',
+                                                     #database=self.db,
+                                                     charset='utf8mb4',
                                                      cursorclass=pymysql.cursors.DictCursor
                                                      )
             except:
@@ -49,7 +49,7 @@ class AWSConstruct:
                 cursor = db_test_connection.cursor()
                 cursor.execute("select version()")
                 version = cursor.fetchone()
-                return db_test_connection
+
         else:
             cursor = db_test_connection.cursor()
             cursor.execute("select version()")
@@ -152,8 +152,7 @@ class AWSConstruct:
         try:
             cursor = db_connection.cursor()
             columns = [f"""{i.replace(' ', '_').replace('-', '')} {dataframe[i].dtypes}""" for i in dataframe.columns]
-            columns = [s.replace('64', '').replace(' or more', '').replace(' or older', '').replace('/', '_') for s in
-                       columns]
+            columns = [s.replace('64', '').replace(' or more', '').replace(' or older', '').replace('/', '_') for s in columns]
             cursor.execute(f"USE {database}")
             create_table = f"""CREATE TABLE {table_name} (""" + ", ".join(columns) + ")"
             cursor.execute(create_table)
