@@ -142,26 +142,32 @@ class AWSConstruct:
             except:
                 return print(colored(f"Creation of Database {db_name} unsuccessful.", "red"))
 
-    def create_table_in_database(self, database, db_connection, table_name, dataframe):
-        """
-        This function will attempt to make a table within the database.
-        :param database:
-        :param db_connection:
-        :param table_name:
-        :param dataframe:
-        :return:
-        """
-        try:
-            cursor = db_connection.cursor()
-            columns = [f"""{i.replace(' ', '_').replace('-', '')} {dataframe[i].dtypes}""" for i in dataframe.columns]
-            columns = [s.replace('64', '').replace(' or more', '').replace(' or older', '').replace('/', '_') for s in columns]
-            cursor.execute(f"USE {database}")
-            create_table = f"""CREATE TABLE {table_name} (""" + ", ".join(columns) + ")"
-            cursor.execute(create_table)
-            print(colored(f"Schema/Table {table_name} created!", 'green'))
-            return columns
-        except:
-            print(colored("Table creation failed.", 'red'))
+    # def create_table_in_database(self, database, db_connection, table_name, dataframe):
+    #     """
+    #     This function will attempt to make a table within the database.
+    #     :param database:
+    #     :param db_connection:
+    #     :param table_name:
+    #     :param dataframe:
+    #     :return:
+    #     """
+    #     cursor = db_connection.cursor()
+    #     try:
+    #         columns = [f"""{i.replace(' ', '_').replace('-', '')} {dataframe[i].dtypes}""" for i in dataframe.columns]
+    #         columns = [s.replace('64', '').replace(' or more', '').replace(' or older', '').replace('/', '_') for s in columns]
+    #
+    #     except:
+    #         print('failed')
+    #
+    #     finally:
+    #         cursor.execute(f"""USE {database} * FROM {table_name}""")
+    #         result = cursor.fetchone()
+    #         if result:
+    #             return print(colored(f"Table {table_name} failed because table already exists.", "blue"))
+    #         else:
+    #             create_table = f"""CREATE TABLE {table_name} (""" + ", ".join(columns) + ")"
+    #             cursor.execute(create_table)
+    #             print(colored(f"Schema/Table {table_name} created!", 'green'))
 
     def sql_truncate_table_from_database(self, db_connection, database, table_name):
         """
@@ -229,8 +235,10 @@ class AWSConstruct:
         cursor = db_connection.cursor()
 
         try:
-            cursor.execute(f"""USE {database}""")
-            cursor.execute(f"""USE {table_name}""")
+            cursor.execute(f"""USE {database};""")
+            return cursor.execute(f"""SELECT COUNT(*) FROM {table_name};""")
+
+
 
         finally:
             pass
