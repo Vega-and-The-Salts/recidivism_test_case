@@ -1,6 +1,6 @@
 import pymysql, os, pandas as pd
 from sqlalchemy import create_engine
-from config import aws_information_dict, aws_information_list
+from config import *
 from termcolor import colored
 
 
@@ -119,6 +119,8 @@ class AWSConstruct:
 
         return print(colored(f"No action taken against Database: {table_name}", "blue"))
 
+
+
     def sql_create_database(self, db_connection, db_name):
         """
         This function is attempting to create a database within MySQL.
@@ -161,6 +163,23 @@ class AWSConstruct:
         except:
             print(colored("Table creation failed.", 'red'))
 
+    def sql_truncate_table_from_database(self, db_connection, database, table_name):
+        """
+        Function attempts to truncate/delete the rows in a table without deleting the columns.
+        :param db_connection:
+        :param database:
+        :param table_name:
+        :return:
+        """
+        try:
+            cursor = db_connection.cursor()
+            cursor.execute(f"""USE {database}""")
+            cursor.execute(f"""TRUNCATE TABLE {table_name}""")
+            return print(colored(f'''Truncation of table {table_name} from {database} successfully executed'''), 'green')
+
+        except:
+            return print(colored(f"""Truncation of table {table_name} from {database} failed""", 'red'))
+
     def show_counts_from_table(self, db_connection, database, table_name):
         """
         This will show all current tables from the selected Database
@@ -198,6 +217,24 @@ class AWSConstruct:
                 return print(
                     colored(f"{len(dataframe)} rows and {len(dataframe.columns)} columns added to {table_name * 2}.",
                             'green'))
+
+    def show_columns_in_table(self, db_connection, database, table_name):
+        """
+        The intention of this is to show the columns that exist within a table
+        :param db_connection:
+        :param database:
+        :param table_name:
+        :return:
+        """
+        cursor = db_connection.cursor()
+
+        try:
+            cursor.execute(f"""USE {database}""")
+            cursor.execute(f"""USE {table_name}""")
+
+        finally:
+            pass
+
 
     def sql_disconnect(self, db_connection):
         """
