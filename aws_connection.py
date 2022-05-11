@@ -179,7 +179,7 @@ class AWSConstruct:
             cursor = db_connection.cursor()
             cursor.execute(f"""USE {database}""")
             cursor.execute(f"""TRUNCATE TABLE {table_name}""")
-            return print(colored(f'''Truncation of table {table_name} from {database} successfully executed'''), 'green')
+            return print(colored(f'''Truncation of table {table_name} from {database} successfully executed''', 'green'))
 
         except:
             return print(colored(f"""Truncation of table {table_name} from {database} failed""", 'red'))
